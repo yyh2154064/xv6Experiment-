@@ -41,6 +41,7 @@ usertrap(void)
   if((r_sstatus() & SSTATUS_SPP) != 0)
     panic("usertrap: not from user mode");
 
+
   // send interrupts and exceptions to kerneltrap(),
   // since we're now in the kernel.
   w_stvec((uint64)kernelvec);
@@ -65,13 +66,13 @@ usertrap(void)
     intr_on();
 
     syscall();
-  } else if((which_dev = devintr()) != 0){
-    // ok
+  } else if((r_scause() == 15 || r_scause() == 13) && iscowpage(r_stval())){
+    startcowcopy(r_stval());
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    p->killed = 1;
-  }
+    setkilled(p);
+  } 
 
   if(p->killed)
     exit(-1);
